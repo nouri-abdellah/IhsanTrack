@@ -8,6 +8,8 @@ import Campaigns from './Pages/Campaigns'
 import About_us from './Pages/About_us'
 import Events from './Pages/Events'
 import Donate from './Pages/Donate'
+import ForgotPassword from './Pages/ForgotPassword'
+import ResetPassword from './Pages/ResetPassword'
 
 import AssocProfilePage from "./Pages/AssocProfilePage";
 import AssocEditProfilePage from "./Pages/AssocEditProfilePage";
@@ -32,6 +34,8 @@ function App() {
       <Route path='/events' element={<Events/>}/>
       <Route path='/user_sign_in' element={<User_sign_in/>}/>
       <Route path='/user_sign_up' element={<User_sign_up/>}/>
+      <Route path='/forgot-password' element={<ForgotPassword/>}/>
+      <Route path='/reset-password' element={<ResetPassword/>}/>
       <Route path='/donate' element={<Donate/>}/>
       
       <Route path="/associations/:id" element={<AssocProfilePage />} />

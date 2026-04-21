@@ -1,19 +1,38 @@
 import im from '../assets/Icons/uim.png'
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
 const User_sign_in = () => {
-const [email, setEmail]=useState('')
-const [password, setPassword]=useState('')
-const handleLogin = async () => {
-    const response = await axios.post('http..........', {
-      email,
-      password
-    });
-    console.log('تم بنجاح!', response.data);
-    console.log(email,password)
-  };
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const { login } = useAuth();
   const navigate = useNavigate();
+
+  const getDashboardPathByRole = (role) => {
+    if (role === 'association') return '/dashboard/association/profile';
+    return '/dashboard/user/profile';
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const data = await login({ email, password });
+      const role = data?.user?.role;
+      navigate(getDashboardPathByRole(role));
+    } catch (err) {
+      const apiError = err?.response?.data?.error;
+      setError(apiError || 'فشل تسجيل الدخول. تحقق من البريد وكلمة المرور ثم أعد المحاولة.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="h-screen w-full flex">
@@ -29,6 +48,7 @@ const handleLogin = async () => {
 </div>
 
           <div className="flex flex-col items-center justify-center w-1/2 h-screen bg-[#10221C]">
+        <form onSubmit={handleLogin} className="flex flex-col items-center">
                <h2 className="text-3xl text-white">طريق الاحسان</h2>
                <br />
                <h3 className="text-2xl text-white">تسجيل الدخول</h3>
@@ -38,12 +58,20 @@ const handleLogin = async () => {
                <p className="text-md text-gray-300 ml-34">البريد الإلكتروني أو الهاتف</p>
                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="أدخل البريد الإلكتروني أو رقم الهاتف" className="w-80 h-9 pr-2 pl-2 text-sm text-white  border border-gray-700 rounded-md  placeholder-gray-600" />
                 <br />
-               <div className="flex"><p className="text-sm ml-37 text-gray-300">كلمة المرور</p> <p className='text-xs text-[#25c481] hover:text-[#1e9e68] hover:cursor-pointer'>نسيت كلمة السر؟</p></div>
+               <div className="flex"><p className="text-sm ml-37 text-gray-300">كلمة المرور</p> <p onClick={() => navigate('/forgot-password')} className='text-xs text-[#25c481] hover:text-[#1e9e68] hover:cursor-pointer'>نسيت كلمة السر؟</p></div>
                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-80 h-9 pr-2 pl-2 text-sm text-white  border border-gray-700 rounded-md  placeholder-gray-600"/>
                 <br />
-                <button onClick={handleLogin} className="w-70 h-9 pr-2 pl-2 text-md text-white  border border-gray-700 rounded-md bg-green-700 hover:cursor-pointer hover:bg-green-600">تسجيل الدخول</button>
+                {error ? <p className="text-red-400 text-sm mb-3 text-center">{error}</p> : null}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-70 h-9 pr-2 pl-2 text-md text-white border border-gray-700 rounded-md bg-green-700 hover:cursor-pointer hover:bg-green-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول'}
+                </button>
                 <br />
                <div className="flex"><p className="text-sm text-gray-300 ">ليس لديك حساب؟ </p> <p onClick={()=>navigate("/user_sign_up")} className=' text-[#25c481] hover:text-[#1e9e68] hover:cursor-pointer'>أنشئ حساباً</p></div>
+              </form>
           </div>
     </div>
   )

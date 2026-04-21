@@ -17,28 +17,30 @@
  * A small edit icon can be added to the avatar to allow profile photo change.
  * Uncomment the edit section below when ready.
  *
- * Props: user — user object from mockUser / API
+ * Props: user — user object from API
  */
-export default function UserProfileHeader({ user }) {
+export default function UserProfileHeader({ user, onEditAvatar }) {
+  const avatarInitial = (user.full_name || user.email || "").trim().charAt(0).toUpperCase() || "👤";
+
   return (
     <div className="flex flex-col items-center text-center gap-3 pt-4">
 
       {/* ── Avatar ── */}
       <div className="relative">
-        <div className="w-28 h-28 rounded-full border-4 border-gray-800 bg-gradient-to-br from-green-800 to-gray-800 flex items-center justify-center overflow-hidden shadow-xl shadow-green-950/50">
-          {user.avatar ? (
+        <div className="w-28 h-28 rounded-full border-4 border-gray-800 bg-linear-to-br from-green-800 to-gray-800 flex items-center justify-center overflow-hidden shadow-xl shadow-green-950/50">
+          {user.avatar_url ? (
             <img
-              src={user.avatar}
-              alt={user.name}
+              src={user.avatar_url}
+              alt={user.full_name}
               className="w-full h-full object-cover"
             />
           ) : (
-            <span className="text-5xl select-none">{user.avatarEmoji ?? "👤"}</span>
+            <span className="text-5xl select-none">{avatarInitial}</span>
           )}
         </div>
 
         {/* Verified badge */}
-        {user.verified && (
+        {user.is_email_verified && (
           <div className="absolute bottom-1 right-1 w-7 h-7 bg-green-500 rounded-full border-3 border-gray-950 flex items-center justify-center shadow-lg"
             style={{ borderWidth: "3px", borderColor: "#030712" }}
           >
@@ -48,19 +50,21 @@ export default function UserProfileHeader({ user }) {
           </div>
         )}
 
-        {/* Uncomment to allow avatar upload:
+        {onEditAvatar && (
         <button
+          type="button"
+          onClick={onEditAvatar}
           className="absolute bottom-1 left-1 w-7 h-7 bg-gray-800 border border-gray-600 hover:border-green-600 rounded-full flex items-center justify-center text-gray-400 hover:text-green-400 text-xs transition-all"
           aria-label="تغيير الصورة"
         >
           ✏️
         </button>
-        */}
+        )}
       </div>
 
       {/* ── Name ── */}
       <h1 className="text-2xl font-extrabold text-white tracking-wide">
-        {user.name}
+        {user.full_name}
       </h1>
 
       {/* ── Email ── */}
