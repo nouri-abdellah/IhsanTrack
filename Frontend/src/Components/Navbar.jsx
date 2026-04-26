@@ -30,7 +30,7 @@ const Navbar = () => {
   };
 
   return (
-    <div className='flex h-18 bg-[#102720]'>
+    <div className='fixed top-0 left-0 right-0 z-50 flex h-18 bg-[#102720] border-b border-gray-800 font-arabic' dir='rtl'>
       <div className='flex mr-6 mt-4 gap-1'>
        <img className='w-10 h-10' src={q} alt="" /><h1 className='text-white mr-2 text-3xl'>طريق</h1><h1 className='text-[#10B77F] text-3xl'>الاحسان</h1>
       </div>

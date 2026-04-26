@@ -12,7 +12,13 @@ export default function useCampaigns() {
 
     try {
       const response = await api.get("/donation-projects");
-      setCampaigns(Array.isArray(response.data) ? response.data : []);
+      const list = Array.isArray(response.data) ? response.data : [];
+      const activeOnly = list.filter((campaign) => {
+        const goal = Number(campaign.goal_amount || campaign.goal || 0);
+        const raised = Number(campaign.current_amount || campaign.raised || 0);
+        return goal <= 0 || raised < goal;
+      });
+      setCampaigns(activeOnly);
     } catch (err) {
       const message = err?.response?.data?.error || "تعذر تحميل الحملات حالياً";
       setError(message);

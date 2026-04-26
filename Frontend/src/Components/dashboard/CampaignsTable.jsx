@@ -1,4 +1,5 @@
 import { useState } from "react";
+import api from "../../api/axios";
 
 /**
  * CampaignsTable.jsx
@@ -38,10 +39,14 @@ const STATUS_STYLES = {
 
 const ITEMS_PER_PAGE = 5;
 
-export default function CampaignsTable({ campaigns, setCampaigns }) {
+export default function CampaignsTable({ campaigns, onRefresh }) {
   const [activeTab, setActiveTab] = useState("الجميع");
   const [page, setPage] = useState(1);
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // id of campaign to delete
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [editingCampaign, setEditingCampaign] = useState(null);
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+  const [requestError, setRequestError] = useState("");
 
   if (!campaigns || campaigns.length === 0) {
     return (
@@ -63,23 +68,23 @@ export default function CampaignsTable({ campaigns, setCampaigns }) {
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  const handleDelete = (id) => {
-    setCampaigns((prev) => prev.filter((c) => c.id !== id));
-    setDeleteConfirm(null);
-  };
-
-  const handleStatusToggle = (id) => {
-    setCampaigns((prev) =>
-      prev.map((c) => {
-        if (c.id !== id) return c;
-        const next = c.status === "نشطة" ? "انتظار" : "نشطة";
-        return { ...c, status: next, statusColor: next === "نشطة" ? "green" : "yellow" };
-      })
-    );
+  const handleDelete = async (id) => {
+    setBusyId(id);
+    setRequestError("");
+    try {
+      await api.delete(`/donation-projects/${id}`);
+      setDeleteConfirm(null);
+      await onRefresh?.();
+    } catch (err) {
+      setRequestError(err?.response?.data?.error || "تعذر حذف الحملة.");
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
-    <div>
+    <div className="relative">
+      <div className={`transition-all duration-300 ${selectedCampaign ? "lg:ml-80" : ""}`}>
       {/* Section header */}
       <div className="flex items-center justify-between mb-4">
         {/* Filter tabs */}
@@ -130,8 +135,13 @@ export default function CampaignsTable({ campaigns, setCampaigns }) {
                   <CampaignRow
                     key={campaign.id}
                     campaign={campaign}
-                    onStatusToggle={() => handleStatusToggle(campaign.id)}
+                    onOpenDonors={() =>
+                      setSelectedCampaign(selectedCampaign?.id === campaign.id ? null : campaign)
+                    }
+                    isSelected={selectedCampaign?.id === campaign.id}
+                    onEditRequest={() => setEditingCampaign(campaign)}
                     onDeleteRequest={() => setDeleteConfirm(campaign.id)}
+                    disabled={busyId === campaign.id}
                   />
                 ))
               )}
@@ -179,19 +189,41 @@ export default function CampaignsTable({ campaigns, setCampaigns }) {
         </div>
       </div>
 
+      {requestError ? (
+        <p className="text-red-400 text-sm mt-3 text-right">{requestError}</p>
+      ) : null}
+
       {/* Delete confirmation modal */}
       {deleteConfirm !== null && (
         <DeleteModal
+          loading={busyId === deleteConfirm}
           onConfirm={() => handleDelete(deleteConfirm)}
           onCancel={() => setDeleteConfirm(null)}
         />
       )}
+
+      {editingCampaign ? (
+        <EditCampaignModal
+          campaign={editingCampaign}
+          onClose={() => setEditingCampaign(null)}
+          onSaved={async () => {
+            setEditingCampaign(null);
+            await onRefresh?.();
+          }}
+        />
+      ) : null}
+
+      <CampaignDonorsDrawer
+        campaign={selectedCampaign}
+        onClose={() => setSelectedCampaign(null)}
+      />
+      </div>
     </div>
   );
 }
 
 /* ── Campaign Row ─────────────────────────────────────────────────────────── */
-function CampaignRow({ campaign, onStatusToggle, onDeleteRequest }) {
+function CampaignRow({ campaign, onOpenDonors, isSelected, onEditRequest, onDeleteRequest, disabled }) {
   const statusStyle = STATUS_STYLES[campaign.status] || STATUS_STYLES["انتظار"];
 
   return (
@@ -200,19 +232,22 @@ function CampaignRow({ campaign, onStatusToggle, onDeleteRequest }) {
       {/* إجراءات */}
       <td className="px-4 py-3.5">
         <div className="flex items-center gap-1.5">
+          <ActionBtn
+            title="عرض المتبرعين"
+            icon="👥"
+            className={`hover:bg-blue-900/40 hover:border-blue-700/50 hover:text-blue-300 ${
+              isSelected ? "bg-blue-900/40 border-blue-700/50 text-blue-300" : ""
+            }`}
+            onClick={onOpenDonors}
+            disabled={disabled}
+          />
           {/* Edit */}
           <ActionBtn
             title="تعديل"
             icon="✏️"
             className="hover:bg-green-900/40 hover:border-green-700/50 hover:text-green-300"
-            onClick={() => {/* navigate to edit page */}}
-          />
-          {/* Pause / Resume */}
-          <ActionBtn
-            title={campaign.status === "نشطة" ? "إيقاف مؤقت" : "تفعيل"}
-            icon={campaign.status === "نشطة" ? "⏸" : "▶"}
-            className="hover:bg-yellow-900/40 hover:border-yellow-700/50 hover:text-yellow-300"
-            onClick={onStatusToggle}
+            onClick={onEditRequest}
+            disabled={disabled}
           />
           {/* Delete */}
           <ActionBtn
@@ -220,6 +255,7 @@ function CampaignRow({ campaign, onStatusToggle, onDeleteRequest }) {
             icon="🗑"
             className="hover:bg-red-900/40 hover:border-red-700/50 hover:text-red-300"
             onClick={onDeleteRequest}
+            disabled={disabled}
           />
         </div>
       </td>
@@ -257,7 +293,7 @@ function CampaignRow({ campaign, onStatusToggle, onDeleteRequest }) {
               style={{ width: `${Math.min(100, campaign.progress)}%` }}
             />
           </div>
-          <span className={`text-xs font-bold tabular-nums min-w-[2.5rem] ${
+          <span className={`text-xs font-bold tabular-nums min-w-10 ${
             campaign.progress >= 100 ? "text-blue-400" : "text-green-400"
           }`}>
             {campaign.progress}%
@@ -267,7 +303,13 @@ function CampaignRow({ campaign, onStatusToggle, onDeleteRequest }) {
 
       {/* الحملة */}
       <td className="px-4 py-3.5">
-        <div className="flex items-center gap-3 justify-end">
+        <button
+          type="button"
+          onClick={onOpenDonors}
+          className="w-full text-right"
+          title="عرض قائمة المتبرعين"
+        >
+        <div className="flex items-center gap-3 justify-end hover:opacity-90 transition-opacity">
           <div className="text-right">
             <p className="text-white font-semibold text-sm leading-snug group-hover:text-green-100 transition-colors">
               {campaign.title}
@@ -287,18 +329,85 @@ function CampaignRow({ campaign, onStatusToggle, onDeleteRequest }) {
             )}
           </div>
         </div>
+        </button>
       </td>
 
     </tr>
   );
 }
 
+function CampaignDonorsDrawer({ campaign, onClose }) {
+  if (!campaign) return null;
+
+  const donations = [...(campaign.donations || [])].sort(
+    (left, right) => new Date(right.date || 0) - new Date(left.date || 0)
+  );
+
+  return (
+    <div className="fixed lg:absolute inset-y-0 left-0 w-full sm:w-96 bg-gray-900/98 border-r border-gray-800 shadow-2xl z-40 flex flex-col">
+      <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+        <button onClick={onClose} className="text-gray-400 hover:text-white text-sm">إغلاق ✕</button>
+        <div className="text-right">
+          <h3 className="text-white font-bold text-base">قائمة المتبرعين</h3>
+          <p className="text-gray-500 text-xs">{campaign.title}</p>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {donations.length === 0 ? (
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4 text-center text-sm text-gray-400">
+            لا توجد تبرعات لهذه الحملة بعد.
+          </div>
+        ) : (
+          donations.map((donation) => {
+            const donorName = donation.anonymous
+              ? "متبرع مجهول"
+              : donation.donor?.full_name || donation.donor?.email || "متبرع";
+            const donorEmail = donation.anonymous ? "مخفي" : donation.donor?.email || "غير متوفر";
+            const donorPhone = donation.anonymous ? "مخفي" : donation.donor?.phone || "غير متوفر";
+            const donationDate = donation.date
+              ? new Intl.DateTimeFormat("ar-DZ", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                }).format(new Date(donation.date))
+              : "غير محدد";
+
+            return (
+              <article key={donation.id} className="rounded-xl border border-gray-800 bg-gray-900/70 p-3 text-right">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-green-400 font-bold text-sm tabular-nums">
+                    {Number(donation.amount || 0).toLocaleString("ar-DZ")} دج
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {donation.anonymous ? (
+                      <span className="text-[11px] font-semibold px-2 py-1 rounded-full border text-gray-300 bg-gray-900 border-gray-700">
+                        مجهول
+                      </span>
+                    ) : null}
+                    <span className="text-white text-sm font-semibold truncate">{donorName}</span>
+                  </div>
+                </div>
+
+                <p className="text-gray-400 text-xs truncate">{donorEmail}</p>
+                <p className="text-gray-500 text-xs truncate">{donorPhone}</p>
+                <p className="text-gray-500 text-xs mt-2">{donationDate} • {donation.payment_method || "غير محدد"}</p>
+              </article>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── ActionBtn helper ─────────────────────────────────────────────────────── */
-function ActionBtn({ icon, title, className, onClick }) {
+function ActionBtn({ icon, title, className, onClick, disabled }) {
   return (
     <button
       onClick={onClick}
       title={title}
+      disabled={disabled}
       className={`w-7 h-7 flex items-center justify-center rounded-lg border border-gray-700 text-gray-500 text-xs transition-all duration-200 ${className}`}
     >
       {icon}
@@ -306,8 +415,85 @@ function ActionBtn({ icon, title, className, onClick }) {
   );
 }
 
+function EditCampaignModal({ campaign, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    title: campaign.title || "",
+    description: campaign.description || "",
+    goal_amount: String(campaign.goal || ""),
+    max_date: campaign.maxDate ? new Date(campaign.maxDate).toISOString().slice(0, 16) : "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      await api.put(`/donation-projects/${campaign.id}`, {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        goal_amount: Number(form.goal_amount),
+        max_date: form.max_date ? new Date(form.max_date).toISOString() : null,
+      });
+      await onSaved?.();
+    } catch (err) {
+      setError(err?.response?.data?.error || "تعذر حفظ تعديلات الحملة.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" dir="rtl">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-lg text-right shadow-2xl">
+        <h3 className="text-white font-bold text-lg mb-4">تعديل الحملة</h3>
+        <div className="space-y-3">
+          <input
+            value={form.title}
+            onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+            placeholder="عنوان الحملة"
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5"
+          />
+          <textarea
+            value={form.description}
+            onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+            placeholder="وصف الحملة"
+            rows={4}
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 resize-none"
+          />
+          <input
+            type="number"
+            min="1"
+            value={form.goal_amount}
+            onChange={(event) => setForm((prev) => ({ ...prev, goal_amount: event.target.value }))}
+            placeholder="المبلغ المستهدف"
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5"
+          />
+          <input
+            type="datetime-local"
+            value={form.max_date}
+            onChange={(event) => setForm((prev) => ({ ...prev, max_date: event.target.value }))}
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5"
+          />
+        </div>
+
+        {error ? <p className="text-red-400 text-sm mt-3">{error}</p> : null}
+
+        <div className="flex gap-3 justify-start mt-5">
+          <button onClick={onClose} disabled={saving} className="px-5 py-2 text-sm text-gray-400 border border-gray-700 rounded-xl hover:text-white">
+            إلغاء
+          </button>
+          <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-sm font-bold bg-green-600 hover:bg-green-500 text-white rounded-xl disabled:opacity-60">
+            {saving ? "جاري الحفظ..." : "حفظ التعديلات"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Delete confirmation modal ────────────────────────────────────────────── */
-function DeleteModal({ onConfirm, onCancel }) {
+function DeleteModal({ onConfirm, onCancel, loading }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-sm w-full text-right shadow-2xl">
@@ -325,9 +511,10 @@ function DeleteModal({ onConfirm, onCancel }) {
           </button>
           <button
             onClick={onConfirm}
+            disabled={loading}
             className="px-5 py-2 text-sm font-bold bg-red-600 hover:bg-red-500 text-white rounded-xl transition-all"
           >
-            نعم، احذف
+            {loading ? "جاري الحذف..." : "نعم، احذف"}
           </button>
         </div>
       </div>

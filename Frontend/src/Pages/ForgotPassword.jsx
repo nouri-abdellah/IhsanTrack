@@ -28,7 +28,7 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#10221C] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#10221C] flex items-center justify-center px-4 font-arabic" dir="rtl">
       <form onSubmit={handleSubmit} className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-6 text-right">
         <h1 className="text-2xl text-white font-bold mb-2">نسيت كلمة المرور</h1>
         <p className="text-gray-400 mb-6">أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين.</p>

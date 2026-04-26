@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import Navbar from '../Components/Navbar'
 import DonationActionModal from '../Components/DonationActionModal'
 import useCampaigns from '../hooks/useCampaigns'
@@ -17,6 +18,19 @@ const formatDate = (value) => {
   }).format(date);
 };
 
+const buildRecentDonors = (donations = []) =>
+  [...donations]
+    .sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0))
+    .slice(0, 3)
+    .map((donation) => ({
+      id: donation.id,
+      name: donation.anonymous ? "متبرع مجهول" : donation.donor?.full_name || donation.donor?.email || "متبرع",
+      amount: Number(donation.amount || 0),
+      timeAgo: donation.date ? formatDate(donation.date) : "حديثاً",
+      avatar: donation.anonymous ? "؟" : (donation.donor?.full_name || "م").charAt(0),
+      anonymous: Boolean(donation.anonymous),
+    }));
+
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center py-20">
     <div className="w-12 h-12 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin" />
@@ -26,12 +40,24 @@ const LoadingSpinner = () => (
 const Campaigns = () => {
   const { campaigns, loading, error } = useCampaigns();
   const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [searchParams] = useSearchParams();
+
+  // Auto-open modal if campaign ID is in URL
+  useEffect(() => {
+    const campaignId = searchParams.get('id');
+    if (campaignId && campaigns.length > 0) {
+      const campaign = campaigns.find(c => c.id === Number(campaignId));
+      if (campaign) {
+        setSelectedCampaign(campaign);
+      }
+    }
+  }, [searchParams, campaigns]);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-gray-950 text-white font-arabic" dir="rtl">
       <Navbar/>
 
-      <section className="max-w-6xl mx-auto px-4 py-8">
+      <section className="max-w-6xl mx-auto px-4 py-8 pt-20">
         <div className="mb-6 text-right">
           <h1 className="text-3xl font-bold">حملات التبرع</h1>
           <p className="text-gray-400 mt-2">قائمة الحملات المتاحة من واجهة IhsanTrack API</p>
@@ -55,6 +81,7 @@ const Campaigns = () => {
             const associationName = campaign.association?.name || campaign.association?.user?.full_name || 'جمعية غير محددة';
             const coverImage = campaign.image_url || campaign.coverImage || campaign.image;
             const deadline = campaign.max_date || campaign.end_date || campaign.deadline;
+            const recentDonors = buildRecentDonors(campaign.donations || []);
 
             return (
               <article
@@ -102,6 +129,10 @@ const Campaigns = () => {
 
                   <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
                     <div className="h-full bg-green-600" style={{ width: `${progress}%` }} />
+                  </div>
+                  <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
+                    <span>{recentDonors.length > 0 ? `${recentDonors.length} متبرع حديث` : "لا توجد تبرعات بعد"}</span>
+                    <span>المزيد في صفحة الجمعية</span>
                   </div>
                   <button
                     type="button"

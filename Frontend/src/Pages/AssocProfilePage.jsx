@@ -82,6 +82,7 @@ export default function AssocProfilePage() {
           id: event.id,
           sortTime: startTime || 0,
           title: event.title,
+          description: event.description || "فعالية تطوعية لخدمة المجتمع المحلي.",
           date: event.start_date ? new Date(event.start_date).toLocaleDateString("ar-DZ") : "غير محدد",
           location: event.location_wilaya || rawAssociation.wilaya || "الجزائر",
           category: event.age_range || "فعالية",
@@ -117,6 +118,21 @@ export default function AssocProfilePage() {
           imageEmoji: "💚",
           urgent: daysLeft > 0 && daysLeft <= 7,
           completed: progress >= 100,
+          recentDonors: Array.isArray(campaign.donations)
+            ? [...campaign.donations]
+                .sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0))
+                .slice(0, 3)
+                .map((donation) => ({
+                  id: donation.id,
+                  name: donation.anonymous ? "متبرع مجهول" : donation.donor?.full_name || "متبرع",
+                  amount: Number(donation.amount || 0),
+                  timeAgo: donation.date
+                    ? new Intl.DateTimeFormat("ar-DZ", { year: "numeric", month: "short", day: "numeric" }).format(new Date(donation.date))
+                    : "حديثاً",
+                  avatar: donation.anonymous ? "؟" : (donation.donor?.full_name || "م").charAt(0),
+                  anonymous: Boolean(donation.anonymous),
+                }))
+            : [],
         };
       })
       .sort((a, b) => b.id - a.id);
@@ -139,11 +155,15 @@ export default function AssocProfilePage() {
       followers: `${(rawAssociation.id || 1) * 3}K`,
       projects: donationProjects.length,
       volunteers: `${volunteersCount}+`,
-      coverImage: null,
+      coverImage: rawAssociation.cover_image_url || null,
       logoImage: rawAssociation.logo_url || null,
       about: description.split(/\n+/).filter(Boolean),
       tags: ["إغاثة", "تعليم", "دعم اجتماعي"],
-      socialLinks: rawAssociation.social_media_links || {},
+      socialLinks: {
+        facebook: rawAssociation.social_media_links?.facebook || "",
+        instagram: rawAssociation.social_media_links?.instagram || "",
+        website: rawAssociation.social_media_links?.website || "",
+      },
       upcomingEvents,
       activeCampaigns,
     };
@@ -153,8 +173,8 @@ export default function AssocProfilePage() {
     <div className="font-arabic min-h-screen bg-gray-950 text-white" dir="rtl">
       <Navbar />
 
-      {/* No top padding here — hero banner fills under the navbar */}
-      <main className="pt-16">
+      {/* Add top padding to account for fixed navbar */}
+      <main className="pt-20">
         {loading ? (
           <div className="max-w-4xl mx-auto px-4 py-20 text-center text-gray-300">جارٍ تحميل بيانات الجمعية...</div>
         ) : error ? (

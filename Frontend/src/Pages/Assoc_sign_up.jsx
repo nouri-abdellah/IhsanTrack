@@ -210,7 +210,7 @@ const Assoc_sign_up = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-gray-950">
+    <div className="min-h-screen w-full flex bg-gray-950 font-arabic" dir="rtl">
       <AuthTopBar
         title="إنشاء حساب جمعية"
         subtitle="أنشئ حسابك وابدأ بإدارة حملاتك"

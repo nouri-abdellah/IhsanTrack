@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AssocDashboardNavbar from "../Components/dashboard/AssocDashboardNavbar";
 import DashboardFooter from "../Components/dashboard/DashboardFooter";
 import AssociationActivityPanel from "../Components/dashboard/AssociationActivityPanel";
@@ -78,10 +78,27 @@ export default function AssocCampaignsDashboardPage() {
           projectTitle: campaign.title,
           donorName: donation.donor?.full_name,
           donor: donation.donor,
+          donorEmail: donation.donor?.email,
+          donorPhone: donation.donor?.phone,
+          anonymous: donation.anonymous,
         }))
       ),
     [campaigns]
   );
+
+  const loadCampaigns = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await api.get("/associations/me/campaigns");
+      setCampaigns((response.data || []).map(mapCampaignRow));
+    } catch (err) {
+      setError(err?.response?.data?.error || "تعذر تحميل الحملات.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -94,36 +111,20 @@ export default function AssocCampaignsDashboardPage() {
 
     let ignore = false;
 
-    const loadCampaigns = async () => {
-      setLoading(true);
-      setError("");
-
-      try {
-        const response = await api.get("/associations/me/campaigns");
-        if (ignore) return;
-        setCampaigns((response.data || []).map(mapCampaignRow));
-      } catch (err) {
-        if (!ignore) {
-          setError(err?.response?.data?.error || "تعذر تحميل الحملات.");
-        }
-      } finally {
-        if (!ignore) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadCampaigns();
+    (async () => {
+      await loadCampaigns();
+      if (ignore) return;
+    })();
 
     return () => {
       ignore = true;
     };
-  }, [authLoading, isAuthenticated, user?.role]);
+  }, [authLoading, isAuthenticated, loadCampaigns, user?.role]);
 
   // Called when CreateCampaignForm submits successfully
-  const handleCampaignCreated = (newCampaign) => {
-    setCampaigns((prev) => [newCampaign, ...prev]);
+  const handleCampaignCreated = async () => {
     setShowCreateForm(false);
+    await loadCampaigns();
   };
 
   return (
@@ -182,7 +183,7 @@ export default function AssocCampaignsDashboardPage() {
 
           {error ? <div className="empty-state"><h3>No records found</h3><p>{error}</p></div> : null}
           {!error ? (
-            <CampaignsTable campaigns={campaigns} setCampaigns={setCampaigns} loading={loading} />
+            <CampaignsTable campaigns={campaigns} onRefresh={loadCampaigns} loading={loading} />
           ) : null}
         </div>
       </main>
@@ -200,19 +201,33 @@ function mapCampaignRow(campaign) {
     ? campaign.donations.map((donation) => donation.user_id)
     : [];
   const donors = new Set(donationUserIds.filter(Boolean)).size;
+  const donations = Array.isArray(campaign.donations)
+    ? campaign.donations.map((donation) => ({
+        id: donation.id,
+        amount: Number(donation.amount || 0),
+        date: donation.date,
+        payment_method: donation.payment_method,
+        anonymous: Boolean(donation.anonymous),
+        donor: donation.donor || null,
+      }))
+    : [];
 
   return {
     id: campaign.id,
     title: campaign.title,
+    description: campaign.description || "",
     image: campaign.image_url,
+    image_url: campaign.image_url,
     imageEmoji: "🍱",
     donors,
     donationUserIds,
     raised,
     goal,
+    maxDate: campaign.max_date || null,
     progress,
     status: progress >= 100 ? "مكتملة" : "نشطة",
     statusColor: progress >= 100 ? "blue" : "green",
     createdAt: campaign.createdAt ? new Date(campaign.createdAt).toLocaleDateString("ar-DZ") : "الآن",
+    donations,
   };
 }

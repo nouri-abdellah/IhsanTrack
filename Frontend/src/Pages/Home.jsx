@@ -1,17 +1,19 @@
 import Navbar from '../Components/Navbar'
-import Herosc from '../Components/Herosc'
+import HeroSection from '../Components/HeroSection'
 import FeaturedCampaigns from '../Components/FeaturedCampaigns'
 import HowItWorks from '../Components/HowItWorks'
 import Footer from '../Components/Footer'
 const Home = () => {
   return (
-    <div>
-   <Navbar/>
-   <Herosc/>
-   <FeaturedCampaigns />
-   <HowItWorks />
-   <Footer />
-   </div>
+    <div className="font-arabic" dir="rtl">
+      <Navbar/>
+      <main className="pt-20">
+        <HeroSection/>
+        <FeaturedCampaigns />
+        <HowItWorks />
+      </main>
+      <Footer />
+    </div>
   )
 }
 

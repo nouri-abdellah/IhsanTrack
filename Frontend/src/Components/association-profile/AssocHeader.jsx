@@ -70,44 +70,46 @@ export default function AssocHeader({ assoc }) {
           </div>
 
           {/* Action buttons — right side on desktop */}
-          <div className="flex items-center gap-3 sm:pb-2 shrink-0 w-full sm:w-auto justify-end">
-            {/* Social links */}
-            <div className="flex items-center gap-2">
-              {assoc.socialLinks?.facebook && (
-                <a
-                  href={assoc.socialLinks.facebook}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-8 h-8 bg-gray-800 hover:bg-blue-700 border border-gray-700 hover:border-blue-600 rounded-lg flex items-center justify-center text-gray-400 hover:text-white text-xs font-bold transition-all duration-200"
-                  aria-label="Facebook"
-                >
-                  f
-                </a>
-              )}
-              {assoc.socialLinks?.instagram && (
-                <a
-                  href={assoc.socialLinks.instagram}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-8 h-8 bg-gray-800 hover:bg-pink-700 border border-gray-700 hover:border-pink-600 rounded-lg flex items-center justify-center text-gray-400 hover:text-white text-xs transition-all duration-200"
-                  aria-label="Instagram"
-                >
-                  📷
-                </a>
-              )}
-              {assoc.socialLinks?.website && (
-                <a
-                  href={assoc.socialLinks.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-8 h-8 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg flex items-center justify-center text-gray-400 hover:text-white text-xs transition-all duration-200"
-                  aria-label="Website"
-                >
-                  🌐
-                </a>
-              )}
-            </div>
+          <div className="sm:pb-2 shrink-0 w-full sm:w-auto">
+            <div className="flex flex-col gap-2 items-end">
+              <div className="flex items-center gap-2">
+                {assoc.socialLinks?.facebook && (
+                  <a
+                    href={assoc.socialLinks.facebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 bg-gray-900 hover:bg-blue-700 border border-gray-700 hover:border-blue-600 rounded-xl flex items-center justify-center text-gray-300 hover:text-white text-xs font-bold transition-all duration-200"
+                    aria-label="Facebook"
+                  >
+                    f
+                  </a>
+                )}
+                {assoc.socialLinks?.instagram && (
+                  <a
+                    href={assoc.socialLinks.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 bg-gray-900 hover:bg-pink-700 border border-gray-700 hover:border-pink-600 rounded-xl flex items-center justify-center text-gray-300 hover:text-white text-xs transition-all duration-200"
+                    aria-label="Instagram"
+                  >
+                    📷
+                  </a>
+                )}
+                {assoc.socialLinks?.website && (
+                  <a
+                    href={assoc.socialLinks.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 bg-gray-900 hover:bg-gray-700 border border-gray-700 rounded-xl flex items-center justify-center text-gray-300 hover:text-white text-xs transition-all duration-200"
+                    aria-label="Website"
+                  >
+                    🌐
+                  </a>
+                )}
+                <span className="text-[11px] text-gray-500">روابط التواصل</span>
+              </div>
 
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
             {/* Follow button */}
             <button
               onClick={() => setFollowing(!following)}
@@ -127,6 +129,8 @@ export default function AssocHeader({ assoc }) {
             >
               تبرع الآن
             </Link>
+              </div>
+            </div>
           </div>
 
         </div>

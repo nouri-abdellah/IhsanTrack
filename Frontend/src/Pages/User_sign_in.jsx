@@ -36,7 +36,7 @@ const User_sign_in = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-gray-950">
+    <div className="min-h-screen w-full flex bg-gray-950 font-arabic" dir="rtl">
          <AuthTopBar
            title="تسجيل دخول المستخدم"
            subtitle="ادخل إلى حسابك وتابع أثر تبرعاتك"

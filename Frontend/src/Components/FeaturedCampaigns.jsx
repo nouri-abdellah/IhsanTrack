@@ -1,6 +1,4 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import DonationActionModal from "./DonationActionModal";
+import { Link, useNavigate } from "react-router-dom";
 import useCampaigns from "../hooks/useCampaigns";
 
 /**
@@ -31,8 +29,21 @@ const formatDate = (value) => {
   }).format(date);
 };
 
+const buildRecentDonors = (donations = []) =>
+  [...donations]
+    .sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0))
+    .slice(0, 3)
+    .map((donation) => ({
+      id: donation.id,
+      name: donation.anonymous ? "متبرع مجهول" : donation.donor?.full_name || donation.donor?.email || "متبرع",
+      amount: Number(donation.amount || 0),
+      timeAgo: donation.date ? formatDate(donation.date) : "حديثاً",
+      avatar: donation.anonymous ? "؟" : (donation.donor?.full_name || "م").charAt(0),
+      anonymous: Boolean(donation.anonymous),
+    }));
+
 export default function FeaturedCampaigns() {
-  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const navigate = useNavigate();
   const { campaigns, loading, error } = useCampaigns();
   const featuredCampaigns = (campaigns || []).slice(0, 3).map((campaign) => ({
     ...campaign,
@@ -47,11 +58,11 @@ export default function FeaturedCampaigns() {
     imageEmoji: campaign.imageEmoji || "💚",
     category: campaign.category || "حملة",
     categoryColor: "bg-green-600",
-    recentDonors: campaign.recentDonors,
+    recentDonors: buildRecentDonors(campaign.donations || campaign.recentDonors || []),
   }));
 
   return (
-    <section className="py-16 bg-gray-950">
+    <section className="py-16 bg-gray-950 font-arabic" dir="rtl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-10">
           <Link to="/campaigns" className="text-green-400 hover:text-green-300 text-sm font-medium flex items-center gap-1 transition-colors">
@@ -86,17 +97,12 @@ export default function FeaturedCampaigns() {
               <CampaignCard
                 key={campaign.id}
                 campaign={campaign}
-                onDonate={() => setSelectedCampaign(campaign)}
+                onDonate={() => navigate(`/campaigns?id=${campaign.id}`)}
               />
             ))}
           </div>
         )}
       </div>
-
-      <DonationActionModal
-        campaign={selectedCampaign}
-        onClose={() => setSelectedCampaign(null)}
-      />
     </section>
   );
 }
@@ -148,6 +154,19 @@ function CampaignCard({ campaign, onDonate }) {
           <span className="text-yellow-400 font-medium">⏳ {campaign.daysLeft} أيام متبقية</span>
           <span>👥 {campaign.donors} متبرع</span>
         </div>
+        {campaign.recentDonors?.length ? (
+          <div className="mb-4 flex -space-x-2 justify-end">
+            {campaign.recentDonors.map((donor) => (
+              <div
+                key={donor.id}
+                className="w-8 h-8 rounded-full border-2 border-gray-900 bg-gray-800 text-[11px] font-bold flex items-center justify-center text-white"
+                title={donor.anonymous ? "متبرع مجهول" : donor.name}
+              >
+                {donor.avatar}
+              </div>
+            ))}
+          </div>
+        ) : null}
         <button
           onClick={onDonate}
           className="w-full py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl text-sm transition-all duration-200 hover:shadow-lg hover:shadow-green-900/40"

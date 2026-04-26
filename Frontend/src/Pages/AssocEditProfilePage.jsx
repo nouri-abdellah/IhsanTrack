@@ -68,6 +68,21 @@ const emptyFormData = {
   accountType: "حساب جمعية",
 };
 
+function calculateProfileCompletion(next) {
+  const hasSocialLink = Boolean(
+    next.facebook?.trim() || next.instagram?.trim() || next.website?.trim()
+  );
+  const checks = [
+    Boolean(next.logoImage),
+    Boolean(next.coverImage),
+    Boolean(next.email),
+    (next.description || "").length >= 50,
+    Boolean(next.address),
+    hasSocialLink,
+  ];
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+}
+
 export default function AssocEditProfilePage() {
   const [formData, setFormData] = useState(emptyFormData);
   const [initialFormData, setInitialFormData] = useState(emptyFormData);
@@ -78,18 +93,6 @@ export default function AssocEditProfilePage() {
 
   useEffect(() => {
     let isMounted = true;
-
-    const profileCompletionScore = (next) => {
-      const checks = [
-        Boolean(next.logoImage),
-        Boolean(next.coverImage),
-        Boolean(next.email),
-        (next.description || "").length >= 50,
-        Boolean(next.address),
-      ];
-      const done = checks.filter(Boolean).length;
-      return Math.round((done / checks.length) * 100);
-    };
 
     const hydrate = async () => {
       setLoading(true);
@@ -128,7 +131,7 @@ export default function AssocEditProfilePage() {
           accountType: "حساب جمعية",
         };
 
-        next.profileCompletion = profileCompletionScore(next);
+        next.profileCompletion = calculateProfileCompletion(next);
 
         if (isMounted) {
           setFormData(next);
@@ -156,14 +159,7 @@ export default function AssocEditProfilePage() {
   const updateField = (field, value) => {
     setFormData((prev) => {
       const next = { ...prev, [field]: value };
-      const checks = [
-        Boolean(next.logoImage),
-        Boolean(next.coverImage),
-        Boolean(next.email),
-        (next.description || "").length >= 50,
-        Boolean(next.address),
-      ];
-      next.profileCompletion = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+      next.profileCompletion = calculateProfileCompletion(next);
       return next;
     });
     setSaved(false);

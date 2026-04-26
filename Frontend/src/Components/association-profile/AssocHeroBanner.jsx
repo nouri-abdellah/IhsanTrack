@@ -19,7 +19,7 @@ export default function AssocHeroBanner({ assoc }) {
   const navigate = useNavigate();
 
   return (
-    <div className="relative w-full h-56 sm:h-72 md:h-80 overflow-hidden bg-green-900">
+    <div className="relative w-full h-56 sm:h-72 md:h-80 overflow-hidden bg-gray-900 border-b border-gray-800">
 
       {/* Cover image — replace gradient with real image */}
       {assoc.coverImage ? (
@@ -29,33 +29,8 @@ export default function AssocHeroBanner({ assoc }) {
           className="w-full h-full object-cover"
         />
       ) : (
-        /* Placeholder cover: green gradient with illustration text */
-        <div className="absolute inset-0 bg-gradient-to-br from-green-700 via-green-800 to-green-950">
-          {/* Decorative circles */}
-          <div className="absolute top-6 left-16 w-32 h-32 bg-green-600/30 rounded-full blur-2xl" />
-          <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-green-500/20 rounded-full blur-3xl" />
-
-          {/* VOLUNTEERS big text */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
-            <span
-              className="text-5xl sm:text-7xl font-black tracking-widest text-white/20 uppercase"
-              style={{ letterSpacing: "0.15em" }}
-            >
-              VOLUNTEERS
-            </span>
-          </div>
-
-          {/* Illustrated people (emoji stand-ins for the SVG illustration) */}
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex items-end gap-4 pb-0">
-            <span className="text-5xl sm:text-6xl drop-shadow-lg" style={{ filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.4))" }}>🧕</span>
-            <span className="text-6xl sm:text-7xl drop-shadow-lg" style={{ filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.4))" }}>👨‍🌾</span>
-          </div>
-
-          {/* Clock icon badge */}
-          <div className="absolute top-8 left-1/2 ml-16 bg-green-600/80 backdrop-blur-sm border border-green-400/30 rounded-full w-12 h-12 flex items-center justify-center shadow-lg">
-            <span className="text-xl">⏰</span>
-          </div>
-        </div>
+        /* Clean blank background when no cover image */
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-800 to-gray-900" />
       )}
 
       {/* Dark overlay at bottom for text legibility */}

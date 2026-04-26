@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import DonationModal from "../DonationModal";
 
 /**
@@ -22,15 +21,35 @@ import DonationModal from "../DonationModal";
  */
 export default function AssocCampaigns({ campaigns }) {
   const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [showAll, setShowAll] = useState(false);
+  
   if (!campaigns || campaigns.length === 0) return null;
+
+  // Show only first 3 campaigns by default
+  const displayedCampaigns = showAll ? campaigns : campaigns.slice(0, 3);
+  const hasMore = campaigns.length > 3;
 
   return (
     <div>
       {/* Section header */}
       <div className="flex items-center justify-between mb-5">
-        <Link to="/campaigns" className="text-green-400 hover:text-green-300 text-sm font-medium transition-colors flex items-center gap-1">
-          ← عرض جميع الحملات
-        </Link>
+        {!showAll && hasMore ? (
+          <button 
+            onClick={() => setShowAll(true)}
+            className="text-green-400 hover:text-green-300 text-sm font-medium transition-colors flex items-center gap-1"
+          >
+            عرض جميع الحملات ←
+          </button>
+        ) : showAll && hasMore ? (
+          <button 
+            onClick={() => setShowAll(false)}
+            className="text-green-400 hover:text-green-300 text-sm font-medium transition-colors flex items-center gap-1"
+          >
+            إخفاء الحملات الإضافية ←
+          </button>
+        ) : (
+          <div />
+        )}
         <div className="flex items-center gap-2">
           <h2 className="text-xl font-extrabold text-white">حملات التبرع الحالية</h2>
           <div className="w-1 h-6 bg-green-500 rounded-full" />
@@ -38,7 +57,7 @@ export default function AssocCampaigns({ campaigns }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {campaigns.map((campaign) => (
+        {displayedCampaigns.map((campaign) => (
           <AssocCampaignCard
             key={campaign.id}
             campaign={campaign}

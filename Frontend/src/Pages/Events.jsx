@@ -38,10 +38,10 @@ const Events = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-gray-950 text-white font-arabic" dir="rtl">
       <Navbar/>
 
-      <section className="max-w-6xl mx-auto px-4 py-8">
+      <section className="max-w-6xl mx-auto px-4 py-8 pt-20">
         <div className="mb-6 text-right">
           <h1 className="text-3xl font-bold">الفعاليات</h1>
           <p className="text-gray-400 mt-2">قائمة الفعاليات من واجهة IhsanTrack API</p>

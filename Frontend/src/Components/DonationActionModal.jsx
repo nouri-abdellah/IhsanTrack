@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
@@ -7,9 +7,11 @@ const QUICK_AMOUNTS = [500, 1000, 2000, 5000];
 
 export default function DonationActionModal({ campaign, onClose, onSuccess }) {
   const { user, isAuthenticated } = useAuth();
+  const overlayRef = useRef(null);
   const [form, setForm] = useState({ full_name: "", email: "", phone: "" });
   const [amount, setAmount] = useState("1000");
   const [paymentMethod, setPaymentMethod] = useState("CIB");
+  const [anonymous, setAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -23,15 +25,61 @@ export default function DonationActionModal({ campaign, onClose, onSuccess }) {
     });
     setAmount("1000");
     setPaymentMethod("CIB");
+    setAnonymous(false);
     setSubmitting(false);
     setError("");
     setSuccess(false);
   }, [campaign, user?.email, user?.full_name, user?.phone]);
 
+  // Close on Escape key
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  // Lock body scroll
+  useEffect(() => {
+    if (campaign) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => { document.body.style.overflow = ""; };
+  }, [campaign]);
+
   const associationName = useMemo(
     () => campaign?.association?.name || campaign?.associationName || "جمعية غير محددة",
     [campaign]
   );
+
+  const topDonors = useMemo(() => {
+    const fromCampaignDonations = Array.isArray(campaign?.donations)
+      ? [...campaign.donations]
+      : [];
+
+    if (fromCampaignDonations.length > 0) {
+      return fromCampaignDonations
+        .sort((left, right) => Number(right.amount || 0) - Number(left.amount || 0))
+        .slice(0, 3)
+        .map((donation) => ({
+          id: donation.id,
+          amount: Number(donation.amount || 0),
+          anonymous: Boolean(donation.anonymous),
+          name: donation.anonymous
+            ? "متبرع مجهول"
+            : donation.donor?.full_name || donation.donor?.email || "متبرع",
+        }));
+    }
+
+    if (Array.isArray(campaign?.recentDonors)) {
+      return campaign.recentDonors.slice(0, 3).map((donor, index) => ({
+        id: donor.id || index,
+        amount: Number(donor.amount || 0),
+        anonymous: Boolean(donor.anonymous),
+        name: donor.anonymous ? "متبرع مجهول" : donor.name || "متبرع",
+      }));
+    }
+
+    return [];
+  }, [campaign]);
 
   if (!campaign) return null;
 
@@ -66,6 +114,7 @@ export default function DonationActionModal({ campaign, onClose, onSuccess }) {
         donation_project_id: Number(campaign.id),
         amount: amountNumber,
         payment_method: paymentMethod,
+        anonymous,
       });
       setSuccess(true);
       onSuccess?.();
@@ -77,18 +126,51 @@ export default function DonationActionModal({ campaign, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm p-4 flex items-center justify-center" dir="rtl">
-      <div className="w-full max-w-lg rounded-2xl border border-gray-800 bg-gray-950 text-white overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+    <div 
+      ref={overlayRef}
+      className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm p-4 flex items-center justify-center"
+      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+      dir="rtl"
+    >
+      <div className="w-full max-w-lg rounded-2xl border border-gray-800 bg-gray-950 text-white overflow-hidden flex flex-col max-h-[92vh]">
+        <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between shrink-0">
           <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
           <h3 className="font-bold text-lg">التبرع للحملة</h3>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div className="text-right">
             <p className="text-gray-400 text-sm">الحملة</p>
             <p className="font-semibold">{campaign.title}</p>
             <p className="text-green-400 text-sm">{associationName}</p>
+          </div>
+
+          <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-gray-500">حسب أعلى مبلغ تبرع</span>
+              <h4 className="text-white font-semibold text-sm">أفضل 3 متبرعين</h4>
+            </div>
+
+            {topDonors.length === 0 ? (
+              <p className="text-xs text-gray-500 text-right">لا توجد تبرعات بعد.</p>
+            ) : (
+              <div className="space-y-2">
+                {topDonors.map((donor, index) => (
+                  <div key={donor.id} className="flex items-center justify-between text-xs">
+                    <span className="text-green-400 font-bold tabular-nums">
+                      {Number(donor.amount || 0).toLocaleString("ar-DZ")} دج
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {donor.anonymous ? (
+                        <span className="px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">مجهول</span>
+                      ) : null}
+                      <span className="text-gray-200">{donor.name}</span>
+                      <span className="text-gray-500">#{index + 1}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {success ? (
@@ -129,6 +211,21 @@ export default function DonationActionModal({ campaign, onClose, onSuccess }) {
                   placeholder="البريد الإلكتروني"
                   className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 sm:col-span-2"
                 />
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/70 px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setAnonymous((value) => !value)}
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${anonymous ? "bg-green-600 text-white" : "bg-gray-800 text-gray-300"}`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${anonymous ? "bg-white" : "bg-gray-500"}`} />
+                  {anonymous ? "التبرع كمتبرع مجهول" : "التبرع بشكل مجهول"}
+                </button>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-white">وضع الخصوصية</p>
+                  <p className="text-xs text-gray-400">عند التفعيل، لا يتم إرسال بياناتك الشخصية حتى لمدير الجمعية</p>
+                </div>
               </div>
 
               <div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import api from "../../api/axios";
 
 /**
  * EventsTable.jsx
@@ -54,15 +55,17 @@ const ITEMS_PER_PAGE = 5;
 
 export default function EventsTable({
   events,
-  setEvents,
   volunteers,
   selectedEvent,
   setSelectedEvent,
-  onRemoveVolunteer,
+  onRefresh,
 }) {
   const [activeTab, setActiveTab] = useState("الجميع");
   const [page, setPage] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+  const [requestError, setRequestError] = useState("");
 
   if (!events || events.length === 0) {
     return (
@@ -82,20 +85,32 @@ export default function EventsTable({
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  const handleDelete = (id) => {
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-    if (selectedEvent?.id === id) setSelectedEvent(null);
-    setDeleteConfirm(null);
+  const handleDelete = async (id) => {
+    setBusyId(id);
+    setRequestError("");
+    try {
+      await api.delete(`/events/${id}`);
+      if (selectedEvent?.id === id) setSelectedEvent(null);
+      setDeleteConfirm(null);
+      await onRefresh?.();
+    } catch (err) {
+      setRequestError(err?.response?.data?.error || "تعذر حذف الفعالية.");
+    } finally {
+      setBusyId(null);
+    }
   };
 
-  const handleStatusToggle = (id) => {
-    setEvents((prev) =>
-      prev.map((e) => {
-        if (e.id !== id) return e;
-        const next = e.status === "نشطة" ? "انتظار" : "نشطة";
-        return { ...e, status: next };
-      })
-    );
+  const handleDecision = async (eventId, userId, decision) => {
+    setBusyId(userId);
+    setRequestError("");
+    try {
+      await api.patch(`/events/${eventId}/applications/${userId}/${decision}`);
+      await onRefresh?.();
+    } catch (err) {
+      setRequestError(err?.response?.data?.error || "تعذر تحديث حالة الطلب.");
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const eventVolunteers = selectedEvent ? (volunteers[selectedEvent.id] || []) : [];
@@ -158,9 +173,10 @@ export default function EventsTable({
                       onViewVolunteers={() =>
                         setSelectedEvent(selectedEvent?.id === event.id ? null : event)
                       }
-                      onStatusToggle={() => handleStatusToggle(event.id)}
+                      onEditRequest={() => setEditingEvent(event)}
                       onDeleteRequest={() => setDeleteConfirm(event.id)}
                       volunteerCount={(volunteers[event.id] || []).length}
+                      disabled={busyId === event.id}
                     />
                   ))
                 )}
@@ -210,15 +226,31 @@ export default function EventsTable({
       <VolunteersDrawer
         event={selectedEvent}
         volunteers={eventVolunteers}
+        busyId={busyId}
         onClose={() => setSelectedEvent(null)}
-        onRemove={(volunteerId) =>
-          onRemoveVolunteer(selectedEvent.id, volunteerId)
-        }
+        onAccept={(volunteerId) => handleDecision(selectedEvent.id, volunteerId, "accept")}
+        onReject={(volunteerId) => handleDecision(selectedEvent.id, volunteerId, "reject")}
       />
+
+      {requestError ? (
+        <p className="text-red-400 text-sm mt-3 text-right">{requestError}</p>
+      ) : null}
+
+      {editingEvent ? (
+        <EditEventModal
+          event={editingEvent}
+          onClose={() => setEditingEvent(null)}
+          onSaved={async () => {
+            setEditingEvent(null);
+            await onRefresh?.();
+          }}
+        />
+      ) : null}
 
       {/* Delete modal */}
       {deleteConfirm !== null && (
         <DeleteModal
+          loading={busyId === deleteConfirm}
           onConfirm={() => handleDelete(deleteConfirm)}
           onCancel={() => setDeleteConfirm(null)}
         />
@@ -228,7 +260,7 @@ export default function EventsTable({
 }
 
 /* ── Event Row ──────────────────────────────────────────────────────────────── */
-function EventRow({ event, isSelected, onViewVolunteers, onStatusToggle, onDeleteRequest, volunteerCount }) {
+function EventRow({ event, isSelected, onViewVolunteers, onEditRequest, onDeleteRequest, volunteerCount, disabled }) {
   const statusStyle = STATUS_STYLES[event.status] || STATUS_STYLES["انتظار"];
 
   return (
@@ -256,7 +288,8 @@ function EventRow({ event, isSelected, onViewVolunteers, onStatusToggle, onDelet
           <button
             title="تعديل"
             className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-700 text-gray-500 text-xs transition-all duration-200 hover:bg-green-900/40 hover:border-green-700/50 hover:text-green-300"
-            onClick={() => {}}
+            onClick={onEditRequest}
+            disabled={disabled}
           >
             ✏️
           </button>
@@ -265,6 +298,7 @@ function EventRow({ event, isSelected, onViewVolunteers, onStatusToggle, onDelet
             title="حذف"
             className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-700 text-gray-500 text-xs transition-all duration-200 hover:bg-red-900/40 hover:border-red-700/50 hover:text-red-300"
             onClick={onDeleteRequest}
+            disabled={disabled}
           >
             🗑
           </button>
@@ -300,7 +334,7 @@ function EventRow({ event, isSelected, onViewVolunteers, onStatusToggle, onDelet
               style={{ width: `${Math.min(100, event.progress)}%` }}
             />
           </div>
-          <span className={`text-xs font-bold tabular-nums min-w-[2.5rem] ${
+          <span className={`text-xs font-bold tabular-nums min-w-10 ${
             event.progress >= 100 ? "text-blue-400" : "text-green-400"
           }`}>
             {event.progress}%
@@ -352,8 +386,7 @@ function EventRow({ event, isSelected, onViewVolunteers, onStatusToggle, onDelet
  *
  * Empty state: "لا يوجد متطوعون مسجلون في هذه الفعالية بعد"
  */
-function VolunteersDrawer({ event, volunteers, onClose, onRemove }) {
-  const [removeConfirm, setRemoveConfirm] = useState(null);
+function VolunteersDrawer({ event, volunteers, onClose, onAccept, onReject, busyId }) {
 
   if (!event) return null;
 
@@ -416,18 +449,37 @@ function VolunteersDrawer({ event, volunteers, onClose, onRemove }) {
                 className="bg-gray-800/60 border border-gray-700/50 rounded-xl p-3 text-right hover:border-gray-600 transition-colors group"
               >
                 <div className="flex items-start justify-between gap-3">
-                  {/* Remove button */}
-                  <button
-                    onClick={() => setRemoveConfirm(vol.id)}
-                    className="shrink-0 mt-1 px-2 py-1 text-xs text-red-400 hover:text-red-300 border border-red-900/50 hover:border-red-700/50 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100"
-                  >
-                    إزالة
-                  </button>
+                  <div className="shrink-0 mt-1 flex flex-col gap-1.5">
+                    <span className={`text-[11px] font-semibold px-2 py-1 rounded-full border text-center ${
+                      vol.status === "accepted"
+                        ? "text-green-300 bg-green-900/30 border-green-800/50"
+                        : vol.status === "rejected"
+                        ? "text-red-300 bg-red-900/30 border-red-800/50"
+                        : "text-yellow-300 bg-yellow-900/30 border-yellow-800/50"
+                    }`}>
+                      {vol.status === "accepted" ? "مقبول" : vol.status === "rejected" ? "مرفوض" : "قيد المراجعة"}
+                    </span>
+                    <button
+                      onClick={() => onAccept(vol.id)}
+                      disabled={busyId === vol.id || vol.status === "accepted"}
+                      className="px-2 py-1 text-xs text-green-300 border border-green-800/60 rounded-lg hover:bg-green-900/30 disabled:opacity-40"
+                    >
+                      قبول
+                    </button>
+                    <button
+                      onClick={() => onReject(vol.id)}
+                      disabled={busyId === vol.id || vol.status === "rejected"}
+                      className="px-2 py-1 text-xs text-red-300 border border-red-800/60 rounded-lg hover:bg-red-900/30 disabled:opacity-40"
+                    >
+                      رفض
+                    </button>
+                  </div>
 
                   {/* Volunteer info */}
                   <div className="flex items-start gap-2.5 flex-1 justify-end">
                     <div className="text-right min-w-0">
                       <p className="text-white font-semibold text-sm leading-snug">{vol.name}</p>
+                      <p className="text-gray-500 text-xs mt-0.5 truncate">{vol.email}</p>
                       <p className="text-gray-400 text-xs mt-0.5 flex items-center gap-1 justify-end">
                         <span>{vol.phone}</span>
                         <span>•</span>
@@ -456,39 +508,88 @@ function VolunteersDrawer({ event, volunteers, onClose, onRemove }) {
           </button>
         </div>
       </div>
-
-      {/* Remove volunteer confirm */}
-      {removeConfirm !== null && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-xs w-full text-right shadow-2xl">
-            <div className="text-2xl mb-2">⚠️</div>
-            <h3 className="text-white font-bold text-base mb-2">إزالة المتطوع</h3>
-            <p className="text-gray-400 text-sm mb-5 leading-relaxed">
-              هل تريد إزالة هذا المتطوع من الفعالية؟
-            </p>
-            <div className="flex gap-2 justify-start">
-              <button
-                onClick={() => setRemoveConfirm(null)}
-                className="px-4 py-2 text-sm text-gray-400 border border-gray-700 rounded-xl hover:text-white transition-all"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={() => { onRemove(removeConfirm); setRemoveConfirm(null); }}
-                className="px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-500 text-white rounded-xl transition-all"
-              >
-                إزالة
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
 
 /* ── Delete confirmation modal ────────────────────────────────────────────── */
-function DeleteModal({ onConfirm, onCancel }) {
+function EditEventModal({ event, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    title: event.title || "",
+    max_participants: String(event.maxVolunteers || ""),
+    start_date: event.startDateValue ? new Date(event.startDateValue).toISOString().slice(0, 16) : "",
+    end_date: event.endDateValue ? new Date(event.endDateValue).toISOString().slice(0, 16) : "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      await api.put(`/events/${event.id}`, {
+        title: form.title.trim(),
+        max_participants: Number(form.max_participants),
+        start_date: new Date(form.start_date).toISOString(),
+        end_date: new Date(form.end_date).toISOString(),
+      });
+      await onSaved?.();
+    } catch (err) {
+      setError(err?.response?.data?.error || "تعذر حفظ تعديلات الفعالية.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" dir="rtl">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-lg text-right shadow-2xl">
+        <h3 className="text-white font-bold text-lg mb-4">تعديل الفعالية</h3>
+        <div className="space-y-3">
+          <input
+            value={form.title}
+            onChange={(eventValue) => setForm((prev) => ({ ...prev, title: eventValue.target.value }))}
+            placeholder="عنوان الفعالية"
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5"
+          />
+          <input
+            type="number"
+            min="1"
+            value={form.max_participants}
+            onChange={(eventValue) => setForm((prev) => ({ ...prev, max_participants: eventValue.target.value }))}
+            placeholder="العدد الأقصى للمشاركين"
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5"
+          />
+          <input
+            type="datetime-local"
+            value={form.start_date}
+            onChange={(eventValue) => setForm((prev) => ({ ...prev, start_date: eventValue.target.value }))}
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5"
+          />
+          <input
+            type="datetime-local"
+            value={form.end_date}
+            onChange={(eventValue) => setForm((prev) => ({ ...prev, end_date: eventValue.target.value }))}
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5"
+          />
+        </div>
+
+        {error ? <p className="text-red-400 text-sm mt-3">{error}</p> : null}
+
+        <div className="flex gap-3 justify-start mt-5">
+          <button onClick={onClose} disabled={saving} className="px-5 py-2 text-sm text-gray-400 border border-gray-700 rounded-xl hover:text-white">
+            إلغاء
+          </button>
+          <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-sm font-bold bg-green-600 hover:bg-green-500 text-white rounded-xl disabled:opacity-60">
+            {saving ? "جاري الحفظ..." : "حفظ التعديلات"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeleteModal({ onConfirm, onCancel, loading }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-sm w-full text-right shadow-2xl">
@@ -501,8 +602,8 @@ function DeleteModal({ onConfirm, onCancel }) {
           <button onClick={onCancel} className="px-5 py-2 text-sm text-gray-400 border border-gray-700 rounded-xl hover:text-white transition-all">
             إلغاء
           </button>
-          <button onClick={onConfirm} className="px-5 py-2 text-sm font-bold bg-red-600 hover:bg-red-500 text-white rounded-xl transition-all">
-            نعم، احذف
+          <button onClick={onConfirm} disabled={loading} className="px-5 py-2 text-sm font-bold bg-red-600 hover:bg-red-500 text-white rounded-xl transition-all disabled:opacity-60">
+            {loading ? "جاري الحذف..." : "نعم، احذف"}
           </button>
         </div>
       </div>

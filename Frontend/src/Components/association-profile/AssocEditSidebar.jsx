@@ -61,7 +61,7 @@ export default function AssocEditSidebar({ formData, updateField }) {
             </div>
             <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-l from-green-500 to-green-700 rounded-full transition-all duration-700"
+                className="h-full bg-linear-to-l from-green-500 to-green-700 rounded-full transition-all duration-700"
                 style={{ width: `${completion}%` }}
               />
             </div>
@@ -80,6 +80,10 @@ export default function AssocEditSidebar({ formData, updateField }) {
               { label: "البريد الإلكتروني", done: !!formData.email },
               { label: "وصف الجمعية", done: formData.description?.length >= 50 },
               { label: "الموقع الجغرافي", done: !!formData.address },
+              {
+                label: "روابط التواصل",
+                done: !!(formData.facebook?.trim() || formData.instagram?.trim() || formData.website?.trim()),
+              },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-end gap-2">
                 <span className="text-xs text-gray-400">{item.label}</span>

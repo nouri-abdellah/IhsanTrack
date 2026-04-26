@@ -54,7 +54,7 @@ export default function AssocAbout({ assoc }) {
                 referrerPolicy="no-referrer-when-downgrade"
               />
               {/* Overlay label */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900/80 to-transparent h-10 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-gray-900/80 to-transparent h-10 pointer-events-none" />
             </div>
 
             {/* Location info */}
@@ -84,6 +84,28 @@ export default function AssocAbout({ assoc }) {
           {/* Quick contact card */}
           <div className="mt-3 bg-gray-900/50 border border-gray-800 rounded-xl p-4 text-right space-y-2">
             <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2">تواصل معنا</p>
+            {assoc.socialLinks?.facebook && (
+              <a
+                href={assoc.socialLinks.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-end gap-2 text-xs text-gray-400 hover:text-green-400 transition-colors"
+              >
+                <span>Facebook</span>
+                <span>f</span>
+              </a>
+            )}
+            {assoc.socialLinks?.instagram && (
+              <a
+                href={assoc.socialLinks.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-end gap-2 text-xs text-gray-400 hover:text-green-400 transition-colors"
+              >
+                <span>Instagram</span>
+                <span>📷</span>
+              </a>
+            )}
             {assoc.socialLinks?.website && (
               <a
                 href={assoc.socialLinks.website}
@@ -94,6 +116,9 @@ export default function AssocAbout({ assoc }) {
                 <span>{assoc.socialLinks.website.replace("https://", "")}</span>
                 <span>🌐</span>
               </a>
+            )}
+            {!assoc.socialLinks?.facebook && !assoc.socialLinks?.instagram && !assoc.socialLinks?.website && (
+              <p className="text-xs text-gray-500">لا توجد روابط اجتماعية مضافة حالياً.</p>
             )}
           </div>
         </div>

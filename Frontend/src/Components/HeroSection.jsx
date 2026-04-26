@@ -20,7 +20,7 @@ import { Link } from "react-router-dom";
 
 export default function HeroSection() {
   return (
-    <section className="relative min-h-screen flex items-center pt-16 overflow-hidden bg-gray-950">
+    <section className="relative min-h-screen flex items-center pt-16 overflow-hidden bg-gray-950 font-arabic" dir="rtl">
 
       {/* Background mesh gradient */}
       <div className="absolute inset-0 bg-gradient-radial from-green-950/80 via-gray-950 to-gray-950" />

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AssocDashboardNavbar from "../Components/dashboard/AssocDashboardNavbar";
 import DashboardFooter from "../Components/dashboard/DashboardFooter";
 import AssociationActivityPanel from "../Components/dashboard/AssociationActivityPanel";
@@ -90,6 +90,8 @@ export default function AssocEventsDashboardPage() {
         (volunteers[event.id] || []).map((volunteer) => ({
           id: volunteer.id,
           name: volunteer.name,
+          email: volunteer.email,
+          phone: volunteer.phone,
           registered_at: volunteer.joinedAt,
           status: volunteer.status,
           eventTitle: event.title,
@@ -98,6 +100,23 @@ export default function AssocEventsDashboardPage() {
       ),
     [events, volunteers]
   );
+
+  const loadEvents = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await api.get("/associations/me/events");
+      const rawEvents = response.data || [];
+      const mappedEvents = rawEvents.map(mapEventRow);
+      setEvents(mappedEvents);
+      setVolunteers(buildVolunteerMap(rawEvents));
+    } catch (err) {
+      setError(err?.response?.data?.error || "تعذر تحميل الفعاليات.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -111,52 +130,19 @@ export default function AssocEventsDashboardPage() {
 
     let ignore = false;
 
-    const loadEvents = async () => {
-      setLoading(true);
-      setError("");
-
-      try {
-        const response = await api.get("/associations/me/events");
-        if (ignore) return;
-        const rawEvents = response.data || [];
-        const mappedEvents = rawEvents.map(mapEventRow);
-        setEvents(mappedEvents);
-        setVolunteers(buildVolunteerMap(rawEvents));
-      } catch (err) {
-        if (!ignore) {
-          setError(err?.response?.data?.error || "تعذر تحميل الفعاليات.");
-        }
-      } finally {
-        if (!ignore) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadEvents();
+    (async () => {
+      await loadEvents();
+      if (ignore) return;
+    })();
 
     return () => {
       ignore = true;
     };
-  }, [authLoading, isAuthenticated, user?.role]);
+  }, [authLoading, isAuthenticated, loadEvents, user?.role]);
 
-  const handleEventCreated = (newEvent) => {
-    setEvents((prev) => [newEvent, ...prev]);
-    setVolunteers((prev) => ({ ...prev, [newEvent.id]: [] }));
+  const handleEventCreated = async () => {
     setShowCreateForm(false);
-  };
-
-  const handleRemoveVolunteer = (eventId, volunteerId) => {
-    setVolunteers((prev) => ({
-      ...prev,
-      [eventId]: prev[eventId].filter((v) => v.id !== volunteerId),
-    }));
-    // Update volunteer count on the event
-    setEvents((prev) =>
-      prev.map((e) =>
-        e.id === eventId ? { ...e, volunteers: Math.max(0, e.volunteers - 1) } : e
-      )
-    );
+    await loadEvents();
   };
 
   return (
@@ -207,11 +193,10 @@ export default function AssocEventsDashboardPage() {
           {!error ? (
             <EventsTable
               events={events}
-              setEvents={setEvents}
               volunteers={volunteers}
               selectedEvent={selectedEvent}
               setSelectedEvent={setSelectedEvent}
-              onRemoveVolunteer={handleRemoveVolunteer}
+              onRefresh={loadEvents}
               loading={loading}
             />
           ) : null}
@@ -261,6 +246,7 @@ function buildVolunteerMap(events) {
       ? event.volunteers.map((volunteer) => ({
           id: volunteer.id,
           name: volunteer.full_name || "مستخدم",
+          email: volunteer.email || "غير متوفر",
           phone: volunteer.phone || "غير متوفر",
           wilaya: event.location_wilaya || "غير محدد",
           joinedAt: volunteer.VolunteersRegistry?.registered_at
