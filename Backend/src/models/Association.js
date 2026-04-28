@@ -32,6 +32,10 @@ const Association = sequelize.define(
       type: DataTypes.TEXT("long"),
       allowNull: false,
     },
+    cover_image_url: {
+      type: DataTypes.TEXT("long"),
+      allowNull: true,
+    },
     wilaya: {
       type: DataTypes.STRING(100),
       allowNull: false,
@@ -47,6 +51,11 @@ const Association = sequelize.define(
     social_media_links: {
       type: DataTypes.JSON,
       allowNull: true,
+    },
+    fields: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: [],
     },
     opening_hours: {
       type: DataTypes.STRING(255),

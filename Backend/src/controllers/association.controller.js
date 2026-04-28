@@ -1,5 +1,18 @@
 import { Association, User, DonationProject, Event, Donation } from "../models/index.js";
 
+const getDonateStatus = (campaign) => {
+  const goal = Number(campaign?.goal_amount || campaign?.goal || 0);
+  const raised = Number(campaign?.current_amount || campaign?.raised || 0);
+  const deadline = campaign?.max_date ? new Date(campaign.max_date) : null;
+  const hasExpired = deadline instanceof Date && !Number.isNaN(deadline.getTime()) && deadline < new Date();
+
+  return {
+    completed: goal > 0 && raised >= goal,
+    expired: hasExpired,
+    canDonate: !(goal > 0 && raised >= goal) && !hasExpired,
+  };
+};
+
 export const getAllAssociations = async (req, res) => {
   try {
     const where = {};
@@ -54,7 +67,8 @@ export const getAssociationById = async (req, res) => {
             }
           : donation
       ),
-    }));
+            ...getDonateStatus(project),
+              }));
 
     return res.json(json);
   } catch (err) {
@@ -94,8 +108,11 @@ export const updateAssociation = async (req, res) => {
       return res.status(403).json({ error: "Not authorized to update this association" });
     }
 
+    console.log("[updateAssociation] incoming body:", Object.keys(req.body).length ? { ...req.body, previewCover: req.body.cover_image_url ? String(req.body.cover_image_url).slice(0, 80) + '...' : undefined } : {});
     await association.update(req.body);
-    return res.json(association);
+    const refreshed = await Association.findByPk(req.params.id);
+    console.log("[updateAssociation] saved cover_image_url present:", !!refreshed.cover_image_url);
+    return res.json(refreshed);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -138,18 +155,20 @@ export const getMyCampaigns = async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
-    const sanitizedCampaigns = campaigns.map((campaign) => {
-      const json = campaign.toJSON();
-      json.donations = (json.donations || []).map((donation) =>
-        donation.anonymous
-          ? {
-              ...donation,
-              donor: null,
-            }
-          : donation
-      );
-      return json;
-    });
+    const sanitizedCampaigns = campaigns
+      .map((campaign) => {
+        const json = campaign.toJSON();
+        json.donations = (json.donations || []).map((donation) =>
+          donation.anonymous
+            ? {
+                ...donation,
+                donor: null,
+              }
+            : donation
+        );
+        Object.assign(json, getDonateStatus(json));
+        return json;
+      });
 
     return res.json(sanitizedCampaigns);
   } catch (err) {

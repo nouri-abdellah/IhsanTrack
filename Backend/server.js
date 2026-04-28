@@ -80,6 +80,54 @@ const ensureDonationAnonymousColumn = async () => {
   }
 };
 
+const ensureDonationProjectDomainColumn = async () => {
+  const [rows] = await sequelize.query(`
+    SELECT COLUMN_NAME
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'donation_projects'
+      AND COLUMN_NAME = 'domain'
+  `);
+
+  if (!rows.length) {
+    await sequelize.query(
+      "ALTER TABLE donation_projects ADD COLUMN domain VARCHAR(100) NOT NULL DEFAULT 'عام' AFTER description"
+    );
+  }
+};
+
+const ensureAssociationFieldsColumn = async () => {
+  const [rows] = await sequelize.query(`
+    SELECT COLUMN_NAME
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'associations'
+      AND COLUMN_NAME = 'fields'
+  `);
+
+  if (!rows.length) {
+    await sequelize.query(
+      "ALTER TABLE associations ADD COLUMN fields JSON NULL AFTER social_media_links"
+    );
+  }
+};
+
+const ensureAssociationCoverImageColumn = async () => {
+  const [rows] = await sequelize.query(`
+    SELECT COLUMN_NAME
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'associations'
+      AND COLUMN_NAME = 'cover_image_url'
+  `);
+
+  if (!rows.length) {
+    await sequelize.query(
+      "ALTER TABLE associations ADD COLUMN cover_image_url LONGTEXT NULL AFTER logo_url"
+    );
+  }
+};
+
 // ── Middleware ──
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "25mb" }));
@@ -121,6 +169,9 @@ const start = async () => {
 
     await repairVolunteersRegistryEventFk();
     await ensureDonationAnonymousColumn();
+    await ensureDonationProjectDomainColumn();
+    await ensureAssociationFieldsColumn();
+    await ensureAssociationCoverImageColumn();
 
     // The database schema is managed explicitly to avoid Sequelize repeatedly
       await widenImageColumns();

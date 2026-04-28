@@ -31,7 +31,6 @@ export const getAllDonationProjects = async (req, res) => {
         {
           model: Donation,
           as: "donations",
-          attributes: ["id", "amount", "date", "anonymous", "user_id", "payment_method"],
           include: [{ model: User, as: "donor", attributes: ["id", "full_name", "email", "phone"] }],
         },
       ],
@@ -74,6 +73,17 @@ export const updateDonationProject = async (req, res) => {
     }
 
     await donationProject.update(req.body);
+    await donationProject.reload({
+      include: [
+        { model: Association, as: "association", attributes: ["id", "name", "wilaya"] },
+        {
+          model: Donation,
+          as: "donations",
+          attributes: ["id", "amount", "date", "anonymous", "user_id", "payment_method"],
+          include: [{ model: User, as: "donor", attributes: ["id", "full_name", "email", "phone"] }],
+        },
+      ],
+    });
     return res.json(donationProject);
   } catch (err) {
     return res.status(500).json({ error: err.message });

@@ -22,6 +22,11 @@ const DonationProject = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: false,
     },
+    domain: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      defaultValue: "عام",
+    },
     image_url: {
       type: DataTypes.TEXT("long"),
       allowNull: false,
