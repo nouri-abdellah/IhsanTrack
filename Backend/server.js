@@ -129,7 +129,10 @@ const ensureAssociationCoverImageColumn = async () => {
 };
 
 // ── Middleware ──
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ 
+  origin: ['http://localhost:5173', process.env.FRONTEND_URL], // Allow local and online frontend
+  credentials: true 
+}));
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 app.use(cookieParser());
@@ -158,30 +161,33 @@ const start = async () => {
     await sequelize.authenticate();
     console.log("Database connected successfully.");
 
-    // Widen role enum first to allow legacy-to-new role value migration safely.
-    await sequelize.query(
-      "ALTER TABLE users MODIFY role ENUM('donor','volunteer','association','assoc_admin','user') NOT NULL DEFAULT 'donor'"
-    );
-    await sequelize.query(
-      "UPDATE users SET role = 'association' WHERE role IN ('assoc_admin')"
-    );
-    await sequelize.query("UPDATE users SET role = 'donor' WHERE role IN ('user', '') OR role IS NULL");
+    // 1. Sync models FIRST to ensure tables exist in empty databases (like Aiven)
+    await sequelize.sync({ alter: true });
+    console.log("All models synchronized and tables created.");
 
-    await repairVolunteersRegistryEventFk();
-    await ensureDonationAnonymousColumn();
-    await ensureDonationProjectDomainColumn();
-    await ensureAssociationFieldsColumn();
-    await ensureAssociationCoverImageColumn();
+    // 2. Run manual column alterations safely
+    try {
+      await sequelize.query(
+        "ALTER TABLE users MODIFY role ENUM('donor','volunteer','association','assoc_admin','user') NOT NULL DEFAULT 'donor'"
+      );
+      await sequelize.query(
+        "UPDATE users SET role = 'association' WHERE role IN ('assoc_admin')"
+      );
+      await sequelize.query("UPDATE users SET role = 'donor' WHERE role IN ('user', '') OR role IS NULL");
 
-    // The database schema is managed explicitly to avoid Sequelize repeatedly
+      await repairVolunteersRegistryEventFk();
+      await ensureDonationAnonymousColumn();
+      await ensureDonationProjectDomainColumn();
+      await ensureAssociationFieldsColumn();
+      await ensureAssociationCoverImageColumn();
       await widenImageColumns();
-    // adding indexes/constraints during alter sync and hitting MySQL's key limit.
-    await sequelize.sync();
-    console.log("All models synchronized.");
+    } catch (migrationError) {
+      console.log("Migration notice (Expected on new databases):", migrationError.message);
+    }
 
     app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-      console.log(`Swagger docs at http://localhost:${PORT}/api-docs`);
+      console.log(`Server running on port ${PORT}`);
+      console.log(`Swagger docs at /api-docs`);
     });
   } catch (err) {
     console.error("Failed to start server:", err.message);
