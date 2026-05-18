@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Cairo';
+  src: url('./assets/Fonts/Cairo/Cairo-VariableFont_slnt,wght.ttf') format('truetype');
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: 'Cairo', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html, body {
+    direction: rtl;
+  }
+}
